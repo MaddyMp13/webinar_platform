@@ -39,3 +39,11 @@ The previous Node/SQLite files and tests are retained as legacy references. Use 
 Chatbot: use [CHATBOT-SETUP.md](CHATBOT-SETUP.md) for local Ollama, transcript uploads, grounded answers, summaries, and saved conversations. Open http://localhost/Task/transcripts.html after dashboard sign-in.
 
 Automatic transcription: [FASTER-WHISPER.md](FASTER-WHISPER.md). The transcript manager provides Generate from video, background job progress, cancellation, and review/edit controls. Speech recognition uses local faster-whisper; the existing Ollama integration uses the saved captions for answers and summaries.
+
+
+#Live Updates:
+
+webinar links:- https://arkentechpublishing.com/2026/october/Task/index.html
+
+Dashboard Link:- https://arkentechpublishing.com/2026/october/Task/dashboard.html
+
