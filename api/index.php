@@ -36,7 +36,7 @@ try {
     if (in_array($resource,['dashboard','dashboard_export','dashboard_detail'],true)) dashboard_api($db,$resource,$method);
     if ($resource === 'webinars' && $method === 'GET') list_webinars($db);
     if ($resource === 'webinar' && $method === 'GET') show_webinar($db);
-    if (!in_array($resource, ['registration','video','playback_session','playback_events','chat','transcript','insights'], true)) throw new ApiError(404, 'API route not found.');
+    if (!in_array($resource, ['registration','video','playback_session','playback_events','chat','transcript','transcript_download','transcription_request','insights'], true)) throw new ApiError(404, 'API route not found.');
     $id = filter_var($_GET['webinar_id'] ?? null, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]]);
     if (!$id) throw new ApiError(400, 'Invalid webinar ID.');
     active_webinar($db, $id);
@@ -45,6 +45,8 @@ try {
     if (in_array($resource,['playback_session','playback_events'],true)) playback_api($db,$session,$id,$resource,$method);
     if ($resource==='chat') chat_api($db,$config,$session,$id,$method);
     if ($resource==='transcript') transcript_api($db,$session,$id,$method);
+    if ($resource==='transcript_download') transcript_download_api($db,$session,$id,$method);
+    if ($resource==='transcription_request') transcription_request_api($db,$config,$session,$id,$method);
     if ($resource==='insights') insights_api($db,$config,$session,$id,$method);
     if ($resource === 'video' && in_array($method, ['GET','HEAD'], true)) stream_video($db,$config,$session,$id);
     if ($resource === 'registration') {

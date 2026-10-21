@@ -1,17 +1,31 @@
-# Automatic local transcription
+# Automatic faster-whisper transcription
 
-Open **http://localhost/Task/transcripts.html** and sign in using your existing dashboard administrator account.
+The hosted application uses `https://transcribe.arkentechsolutions.com` through the server-side adapter in `api/transcription.php`. The browser never receives the API key. The application uploads the selected private recording, stores the returned job ID, polls the job status from the authenticated transcript manager, validates the result, and saves timestamped transcript chunks automatically. The chatbot becomes available as soon as that transcript is saved.
+
+Add the API key to the hosted site's protected `config/config.local.php`:
+
+```php
+'transcription_api_key' => 'YOUR_API_KEY',
+```
+
+The configured default header is `X-API-Key`. If the VPS expects another header, set `transcription_api_key_header` in the same protected file. Do not place the key in JavaScript, HTML, `config/transcription.vps.php`, or an upload archive.
+
+The API's current OpenAPI schema accepts only the multipart `file` field. It does not expose language selection or a translation task, so the hosted workflow uses automatic spoken-language detection. Adding translation to English requires the VPS API to accept a parameter such as `task=translate` or `target_language=en` and return it in the documented schema.
+
+After a visitor registers, the webinar page opens the right-side assistant. If the selected webinar has no transcript, PHP uploads that webinar's private recording to the VPS once, stores the job in `transcription_jobs`, and polls it from the drawer. When Faster-Whisper finishes, the drawer unlocks transcript search and download, asks Ollama for the source-backed summary, and enables the question field. Closing the drawer does not cancel the server job; reopening it resumes status checks.
+
+Open the hosted `transcripts.html` page and sign in using your existing dashboard administrator account.
 
 1. In **Automatic transcription**, select a webinar’s recording and its spoken language, or use automatic detection.
 2. Confirm permission to transcribe that recording. If a transcript already exists, confirm its replacement when the new job completes.
-3. Click **Generate from video**. The local background worker reads the selected recording, recognizes speech, creates timestamped captions and saves transcript chunks in MySQL. The chatbot then uses those chunks. The job continues if the browser closes; reload a webinar page to pick up newly available content.
+3. Click **Generate from video**. PHP uploads the selected recording to the faster-whisper VPS. The transcript manager polls the returned job and saves transcript chunks in MySQL when processing completes. Reload a webinar page to pick up newly available content.
 4. Review the result against the video. Under **Add or replace a transcript**, select the webinar and choose **Load current transcript for editing**. Make corrections and save. Important names and technical terms may need correction. Source labels and the transcript viewer identify automatically generated captions.
 
 Transcribing a sample video produces that sample’s actual speech. To transcribe an original webinar, configure its real authorized recording first. Nothing is inferred from the campaign title, description, or artwork.
 
-## Installed local runtime
+## Optional local runtime
 
-The web app remains HTML, CSS, JavaScript and PHP on XAMPP. A separate Python worker runs speech recognition using [faster-whisper](https://github.com/SYSTRAN/faster-whisper). This machine uses the multilingual `base` model, CPU execution, INT8 and two CPU threads. PyAV supplies the audio decoder, so a separate FFmpeg command is not required. The decoder version is pinned to match faster-whisper’s API.
+The local Python worker remains available for XAMPP development by removing `config/transcription.vps.php` or changing `transcription_provider` back to `local`. It runs speech recognition using [faster-whisper](https://github.com/SYSTRAN/faster-whisper) with the multilingual `base` model, CPU execution and INT8.
 
 Runtime and downloaded model files are outside the website, at:
 

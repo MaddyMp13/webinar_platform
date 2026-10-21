@@ -22,5 +22,6 @@ check(count(validate_evidence([['chunkId'=>11,'quote'=>'use verified backups']],
 rejects(fn()=>validate_evidence([['chunkId'=>22,'quote'=>'use verified backups']],[$chunks[0]]),'reject source outside retrieval');
 rejects(fn()=>validate_evidence([['chunkId'=>11,'quote'=>'unverified automatic policy']],[$chunks[0]]),'reject fabricated source quote');
 rejects(fn()=>ollama_http(['ollama_url'=>'http://example.com'],'/api/tags'),'reject non-local provider address');
+rejects(fn()=>ollama_http(['ollama_url'=>'http://example.com','ollama_allowed_hosts'=>['example.com']],'/api/tags'),'reject insecure remote provider without explicit opt-in');
 $parts=insight_parts(array_fill(0,25,$chunks[0])); check(count($parts)===1,'summary grouping covers input');
 echo "Chatbot parser, retrieval, source and local-provider checks passed.\n";

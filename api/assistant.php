@@ -4,18 +4,33 @@ declare(strict_types=1);
 function ollama_http(array $config,string $path,?array $payload=null,int $timeout=3): array
 {
     $base=rtrim($config['ollama_url'] ?? '', '/'); $url=parse_url($base);
-    if (!$url || ($url['scheme'] ?? '')!=='http' || !in_array($url['host'] ?? '',['127.0.0.1','localhost','[::1]'],true)
-        || !empty($url['user']) || !empty($url['pass']) || !empty($url['query']) || !empty($url['fragment']) || !empty($url['path']))
-        throw new ApiError(503,'Configure Ollama with a loopback HTTP address in the protected PHP configuration.');
+    $scheme=strtolower((string)($url['scheme'] ?? ''));
+    $host=strtolower(trim((string)($url['host'] ?? ''),'[]'));
+    $allowed=$config['ollama_allowed_hosts'] ?? ['127.0.0.1','localhost','::1'];
+    if (!is_array($allowed)) $allowed=[];
+    $allowed=array_map(static fn($item)=>strtolower(trim((string)$item,'[]')),$allowed);
+    $isLoopback=in_array($host,['127.0.0.1','localhost','::1'],true);
+    if (!$url || !in_array($scheme,['http','https'],true) || $host==='' || !in_array($host,$allowed,true)
+        || !empty($url['user']) || !empty($url['pass']) || !empty($url['query']) || !empty($url['fragment'])
+        || !empty($url['path']))
+        throw new ApiError(503,'The configured Ollama endpoint is invalid or is not in ollama_allowed_hosts.');
+    if (!$isLoopback && $scheme==='http' && empty($config['ollama_allow_insecure_http']))
+        throw new ApiError(503,'Remote Ollama uses HTTP. Set ollama_allow_insecure_http=true only for a trusted, firewall-restricted connection.');
+    $headers=['Content-Type: application/json'];
+    $token=$config['ollama_bearer_token'] ?? '';
+    if ($token!=='') {
+        if (!is_string($token) || strlen($token)>500 || preg_match('/[\r\n]/',$token)) throw new ApiError(503,'Invalid Ollama authentication configuration.');
+        $headers[]='Authorization: Bearer '.$token;
+    }
     $ch=curl_init($base.$path); $body='';
     curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>false,CURLOPT_CONNECTTIMEOUT=>2,CURLOPT_TIMEOUT=>$timeout,
-        CURLOPT_FOLLOWLOCATION=>false,CURLOPT_PROTOCOLS=>CURLPROTO_HTTP,CURLOPT_PROXY=>'',
-        CURLOPT_HTTPHEADER=>['Content-Type: application/json'],CURLOPT_WRITEFUNCTION=>static function($ch,$part) use (&$body) {
+        CURLOPT_FOLLOWLOCATION=>false,CURLOPT_PROTOCOLS=>CURLPROTO_HTTP | CURLPROTO_HTTPS,CURLOPT_PROXY=>'',
+        CURLOPT_HTTPHEADER=>$headers,CURLOPT_WRITEFUNCTION=>static function($ch,$part) use (&$body) {
             if (strlen($body)+strlen($part)>1000000) return 0; $body.=$part; return strlen($part);
         }]);
     if ($payload!==null) curl_setopt_array($ch,[CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>json_encode($payload,JSON_THROW_ON_ERROR)]);
     $ok=curl_exec($ch); $status=curl_getinfo($ch,CURLINFO_RESPONSE_CODE); curl_close($ch);
-    if ($ok===false || $status!==200) throw new ApiError(503,'Local Ollama is unavailable or the model could not finish. Start Ollama, check the model, and retry. Your question has not been saved.');
+    if ($ok===false || $status!==200) throw new ApiError(503,'Ollama is unavailable or the model could not finish. Check the configured server and model, then retry. Your question has not been saved.');
     try { $result=json_decode($body,true,64,JSON_THROW_ON_ERROR); }
     catch (JsonException) { throw new ApiError(502,'Ollama returned an unreadable response. Please retry.'); }
     if (!is_array($result)) throw new ApiError(502,'Invalid Ollama response.');
@@ -26,13 +41,13 @@ function assistant_status(array $config): array
     if (($config['chat_provider'] ?? 'excerpts')==='excerpts') return ['mode'=>'transcript_excerpts','available'=>true,'model'=>null,'message'=>'Transcript excerpt mode. AI generation is disabled.'];
     $model=$config['ollama_model'] ?? '';
     if (!is_string($model) || !preg_match('/^[A-Za-z0-9_.:\/-]{1,100}$/D',$model) || str_ends_with($model,':cloud') || str_ends_with($model,'-cloud'))
-        return ['mode'=>'ollama','available'=>false,'model'=>null,'message'=>'Choose an installed local model in config/config.local.php. Cloud models are disabled.'];
+        return ['mode'=>'ollama','available'=>false,'model'=>null,'message'=>'Choose an installed Ollama model in config/config.local.php. Cloud model names are disabled.'];
     try {
         $tags=ollama_http($config,'/api/tags');
         foreach ($tags['models'] ?? [] as $item) if (($item['name'] ?? '')===$model && empty($item['remote_host']) && empty($item['remote_model']))
-            return ['mode'=>'ollama','available'=>true,'model'=>$model,'message'=>'Local Ollama · '.$model];
+            return ['mode'=>'ollama','available'=>true,'model'=>$model,'message'=>'Ollama connected · '.$model];
         return ['mode'=>'ollama','available'=>false,'model'=>$model,'message'=>'Ollama is running. Install the configured model: ollama pull '.$model];
-    } catch (ApiError) { return ['mode'=>'ollama','available'=>false,'model'=>$model,'message'=>'Start local Ollama and install '.$model.'. The transcript remains available to read and search.']; }
+    } catch (ApiError) { return ['mode'=>'ollama','available'=>false,'model'=>$model,'message'=>'Connect the configured Ollama server and install '.$model.'. The transcript remains available to read and search.']; }
 }
 function evidence_schema(): array
 {
@@ -134,7 +149,7 @@ function insights_api(PDO $db,array $config,?array $visitor,int $id,string $meth
     $saved=[]; foreach ($q->fetchAll() as $row) $saved[(int)$row['part_index']]=json_decode($row['result_json'],true,32,JSON_THROW_ON_ERROR);
     if ($method==='GET') json_response(200,['parts'=>$saved ?: new stdClass(),'totalParts'=>count($parts),'version'=>$hash]);
     if ($method!=='POST') throw new ApiError(405,'Method not allowed.');
-    require_write_access($visitor); activity_registration($db,$visitor,$id); rate_limit($db,'insights',12);
+    require_write_access($visitor); rate_limit($db,'insights',12);
     $data=read_json(); $index=$data['part'] ?? 0;
     if (!is_int($index) || !isset($parts[$index]) || ($data['version'] ?? '')!==$hash) throw new ApiError(409,'The transcript changed. Reload the summary and retry.');
     transcript_lock($db,$id);

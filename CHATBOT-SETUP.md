@@ -14,6 +14,12 @@ This starts Ollama locally if needed and downloads `qwen2.5:1.5b` (about 986 MB)
 
 PHP calls the local [Ollama chat API](https://docs.ollama.com/api/chat) and uses [structured outputs](https://docs.ollama.com/capabilities/structured-outputs). No API key or cloud subscription is needed. The site sends only the question, bounded recent chat context, and retrieved transcript passages to the local model. It does not include registration contact fields. Do not expose Ollama's port publicly.
 
+## Hosted PHP with Ollama on a VPS
+
+For the hosted site, `config/ollama.vps.php` supplies the active AI connection without replacing the database credentials in `config/config.local.php`. It selects `qwen3:1.7b`, explicitly allowlists the VPS address, and enables the current HTTP connection. PHP contacts Ollama server-to-server, so browser mixed-content rules do not apply. `config/config.hosting.example.php` remains a reference for a complete hosting configuration.
+
+The current HTTP endpoint is unencrypted and responds without authentication. Restrict its VPS firewall rule to the web server's outbound IP as soon as that address is known. A stronger production setup terminates HTTPS and bearer authentication at a reverse proxy in front of Ollama; the adapter supports an optional `ollama_bearer_token` for that arrangement.
+
 ## Database
 
 On an existing XAMPP database run:

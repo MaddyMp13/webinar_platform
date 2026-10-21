@@ -129,3 +129,18 @@ function transcript_api(PDO $db,?array $visitor,int $id,string $method): never
     if ($search!=='') $chunks=array_values(array_filter($chunks,static fn($c)=>mb_stripos($c['chunk_text'],$search)!==false));
     json_response(200,['chunks'=>array_slice($chunks,$offset,15),'total'=>count($chunks),'offset'=>$offset,'version'=>$hash,'transcription'=>$provenance,'nextOffset'=>$offset+15<count($chunks)?$offset+15:null]);
 }
+
+function transcript_download_api(PDO $db,?array $visitor,int $id,string $method): never
+{
+    if ($method!=='GET' && $method!=='HEAD') throw new ApiError(405,'Method not allowed.');
+    if (!find_registration($db,$visitor,$id)) throw new ApiError(401,'Register for this webinar to download its transcript.');
+    $chunks=transcript_chunks($db,$id); if (!$chunks) throw new ApiError(404,'This webinar does not have a transcript yet.');
+    $q=$db->prepare('SELECT slug FROM webinars WHERE id=?'); $q->execute([$id]); $slug=preg_replace('/[^a-z0-9-]+/','-',strtolower((string)$q->fetchColumn())) ?: 'webinar';
+    $timed=count(array_filter($chunks,static fn($c)=>$c['start_seconds']!==null && $c['end_seconds']!==null))===count($chunks);
+    if ($timed) {
+        $stamp=static function($seconds): string { $ms=(int)round((float)$seconds*1000); return sprintf('%02d:%02d:%02d.%03d',intdiv($ms,3600000),intdiv($ms,60000)%60,intdiv($ms,1000)%60,$ms%1000); };
+        $body="WEBVTT\n\n".implode("\n\n",array_map(static fn($c)=>$stamp($c['start_seconds']).' --> '.$stamp($c['end_seconds'])."\n".str_replace('-->','→',$c['chunk_text']),$chunks))."\n"; $extension='vtt'; $type='text/vtt';
+    } else { $body=implode("\n\n",array_column($chunks,'chunk_text'))."\n"; $extension='txt'; $type='text/plain'; }
+    header('Content-Type: '.$type.'; charset=utf-8'); header('Content-Disposition: attachment; filename="'.$slug.'-transcript.'.$extension.'"'); header('Cache-Control: private, no-store'); header('Content-Length: '.strlen($body));
+    if ($method==='GET') echo $body; exit;
+}
