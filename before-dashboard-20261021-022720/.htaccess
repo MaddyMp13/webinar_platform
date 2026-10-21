@@ -1,0 +1,8 @@
+Options -Indexes
+DirectoryIndex index.html
+
+# Serve only public page/assets and the PHP API entry point.
+# SQL, credentials, database files, backups, source tests, and raw videos stay private.
+RewriteEngine On
+RewriteRule ^(?:index\.html|first\.html|webinar\.html|styles\.css|script\.js|backend\.js|registration\.js|registration-rules\.js|Google-Logo-Tech-Company\.png|api/index\.php)?$ - [END]
+RewriteRule ^ - [F,L]

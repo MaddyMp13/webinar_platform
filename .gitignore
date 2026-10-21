@@ -1,0 +1,6 @@
+.data/
+.qa/
+node_modules/
+config/config.local.php
+__pycache__/
+*.pyc
