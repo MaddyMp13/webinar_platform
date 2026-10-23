@@ -7,6 +7,14 @@ const WebinarRegistration = (() => {
   const countries = countryCodes.map(code => ({ code, name: countryNames.of(code) }))
     .sort((a, b) => a.name.localeCompare(b.name));
   const escape = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+  const sampleSources = Object.freeze({
+    'ai-data-resilience': 'https://www.youtube.com/watch?v=qnxAK_mdPLg',
+    'cloud-security-ai': 'https://www.youtube.com/watch?v=QfFROJguRG4',
+    'cloud-data-analytics': 'https://www.youtube.com/watch?v=orpgLYM-FYM',
+    'cybersecurity-ai': 'https://www.youtube.com/watch?v=6wPcR6MrsIk',
+    'big-data-microsoft-azure': 'https://www.youtube.com/watch?v=2ZuZV-dlyto',
+    'ai-threat-detection': 'https://www.youtube.com/watch?v=tyEDiMVa58o',
+  });
 
   async function mount(webinar) {
     const panel = document.querySelector('#registration-panel');
@@ -32,7 +40,8 @@ const WebinarRegistration = (() => {
 
     function renderPlayer(openAssistant = false) {
       WebinarPlayback.stop();
-      media.innerHTML = `<section class="video-section" aria-labelledby="video-title"><div class="video-heading"><h2 id="video-title">Watch this session</h2>${webinar.videoIsDemo ? '<span class="badge demo-badge">Sample video</span>' : ''}</div><video id="webinar-video" controls playsinline preload="metadata" aria-label="${escape(webinar.title)} — ${escape(webinar.videoLabel)}"><source src="${escape(activeRegistration.videoUrl)}" type="video/mp4">Your browser does not support HTML5 video.</video><p id="video-error" class="form-feedback" role="alert" hidden>We couldn’t load the video. Check your connection and <button type="button" class="text-button" id="retry-video">try again</button>, or use the direct video link below.</p><div class="video-caption"><p>${webinar.videoIsDemo ? `<strong>Demo content:</strong> ${escape(webinar.videoLabel)}. This is a placeholder, not the original webinar recording.` : escape(webinar.videoLabel)}</p><a href="${escape(activeRegistration.videoUrl)}" target="_blank" rel="noopener noreferrer">Open direct video ↗<span class="visually-hidden"> (opens in a new tab)</span></a></div></section>`;
+      const sampleSource = webinar.videoIsDemo ? sampleSources[webinar.slug] : null;
+      media.innerHTML = `<section class="video-section" aria-labelledby="video-title"><div class="video-heading"><h2 id="video-title">Watch this session</h2>${webinar.videoIsDemo ? '<span class="badge demo-badge">Sample video</span>' : ''}</div><video id="webinar-video" controls playsinline preload="metadata" aria-label="${escape(webinar.title)} — ${escape(webinar.videoLabel)}"><source src="${escape(activeRegistration.videoUrl)}" type="video/mp4">Your browser does not support HTML5 video.</video><p id="video-error" class="form-feedback" role="alert" hidden>We couldn’t load the video. Check your connection and <button type="button" class="text-button" id="retry-video">try again</button>, or use the direct video link below.</p><div class="video-caption"><p>${webinar.videoIsDemo ? `<strong>Demo content:</strong> ${escape(webinar.videoLabel)}. This is a placeholder, not the original webinar recording.${sampleSource ? ` <a href=\"${escape(sampleSource)}\" target=\"_blank\" rel=\"noopener noreferrer\">Source on YouTube ↗</a>` : ''}` : escape(webinar.videoLabel)}</p><a href="${escape(activeRegistration.videoUrl)}" target="_blank" rel="noopener noreferrer">Open direct video ↗<span class="visually-hidden"> (opens in a new tab)</span></a></div></section>`;
       const video = document.querySelector('#webinar-video');
       const trackingNote=document.createElement('p');
       trackingNote.id='tracking-note'; trackingNote.className='media-note';
